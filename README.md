@@ -20,6 +20,17 @@ pip3 config set global.index-url http://nexus.sii.shaipower.online/repository/py
 pip3 config set global.trusted-host nexus.sii.shaipower.online
 export HF_ENDPOINT="https://hf-mirror.com"
 sed -i '1i deb http://nexus.sii.shaipower.online/repository/ubuntu/ jammy main' /etc/apt/sources.list
+conda config --remove channels defaults
+conda config --add channels http://nexus.sii.shaipower.online/repository/anaconda/main
+# 以下channel按需添加
+conda config --add channels http://nexus.sii.shaipower.online/repository/anaconda/r
+conda config --add channels http://nexus.sii.shaipower.online/repository/anaconda/msys2
+conda config --set custom_channels.pytorch http://nexus.sii.shaipower.online/repository/conda-cloud
+conda config --set custom_channels.pytorch3d http://nexus.sii.shaipower.online/repository/conda-cloud
+conda config --set custom_channels.nvidia http://nexus.sii.shaipower.online/repository/conda-nvidia
+apt update
+apt install tmux -y
+
 ```
 <!-- 1. Clone this repository and navigate to LLaVa-med-report folder
 ```bash
