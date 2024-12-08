@@ -358,6 +358,7 @@ class LazySupervisedDataset(Dataset):
                     print(f"Skipping invalid image file: {item['image']}")
                     continue
             self.list_data_dict.append(item)
+        print('[!] Training data length: ',len(self.list_data_dict))
 
     def __len__(self):
         return len(self.list_data_dict)
@@ -405,8 +406,8 @@ class LazySupervisedDataset(Dataset):
                 image = processor.preprocess(image, return_tensors='pt')['pixel_values'][0] # 3 224 224
 
             # import pdb; pdb.set_trace()
-            image_token_len = self.multimodal_cfg["image_token_len"] # 576
-            patch_size = int(image.shape[1]//math.sqrt(image_token_len)) # 9 
+            image_token_len = self.multimodal_cfg["image_token_len"] 
+            patch_size = int(image.shape[1]//math.sqrt(image_token_len)) 
             cur_token_len = (image.shape[1]//patch_size) * (image.shape[2]//patch_size)   # FIXME: 14 is hardcoded patch size
 
             try:
@@ -573,6 +574,8 @@ def train():
         model.initialize_vision_tokenizer(mm_use_im_start_end=model_args.mm_use_im_start_end, tokenizer=tokenizer, device=training_args.device,
                                           tune_mm_mlp_adapter=model_args.tune_mm_mlp_adapter, pretrain_mm_mlp_adapter=model_args.pretrain_mm_mlp_adapter)
         params_no_grad = [n for n, p in model.named_parameters() if not p.requires_grad]
+        params_grad = [n for n, p in model.named_parameters() if p.requires_grad]
+        print('[!]params for training: ',params_grad)
         if len(params_no_grad) > 0: 
             if training_args.fsdp is not None and len(training_args.fsdp) > 0:
                 if len(params_no_grad) < 10:

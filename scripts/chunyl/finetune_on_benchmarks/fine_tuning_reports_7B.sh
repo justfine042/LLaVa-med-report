@@ -1,21 +1,22 @@
 export PYTHONPATH=$PYTHONPATH:$(pwd)
-export PATH=":$PATH"
+export PATH="/inspire/ssd/ws-f4d69b29-e0a5-44e6-bd92-acf4de9990f0/public-project/ruishaohao-240108100042/myconda/conda_dir/envs/llava-med-report/bin:$PATH"
+echo $PATH
 # python \
-torchrun --nnodes=1 --nproc_per_node=8 --master_port=25001 \
+torchrun --nnodes=1 --nproc_per_node=2 --master_port=23001 \
     llava/train/train_mem.py \
     --model_name_or_path composed_weights/llava_med_in_text_60k_ckpt2_delta \
-    --data_path data/mimic_sft/train.json \
-    --image_folder data/MIMIC-CXR/images_processed/images \
+    --data_path xray-report/train.json \
+    --image_folder xray-report/images \
     --vision_tower openai/clip-vit-large-patch14 \
     --mm_vision_select_layer -2 \
     --mm_use_im_start_end True \
     --tune_mm_mlp_adapter True \
     --bf16 True \
-    --output_dir ./checkpoints/mimic_sft_nolateral_bs128_ep3 \
-    --num_train_epochs 3 \
-    --per_device_train_batch_size 2 \
-    --per_device_eval_batch_size 4 \
-    --gradient_accumulation_steps 8 \
+    --output_dir ./checkpoints/debug \
+    --num_train_epochs 1 \
+    --per_device_train_batch_size 1 \
+    --per_device_eval_batch_size 1 \
+    --gradient_accumulation_steps 1 \
     --evaluation_strategy "no" \
     --save_strategy "steps" \
     --save_steps 5000 \

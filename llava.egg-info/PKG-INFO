@@ -1,31 +1,47 @@
+Metadata-Version: 2.1
+Name: llava
+Version: 0.1.0
+Summary: Towards GPT-4 like large language and visual assistant.
+Project-URL: Homepage, https://github.com/microsoft/LLaVA-Med
+Project-URL: Bug Tracker, https://github.com/microsoft/LLaVA-Med/issues
+Classifier: Programming Language :: Python :: 3
+Classifier: License :: OSI Approved :: Apache Software License
+Requires-Python: >=3.8
+Description-Content-Type: text/markdown
+Requires-Dist: accelerate
+Requires-Dist: fastapi
+Requires-Dist: gradio==3.23
+Requires-Dist: markdown2[all]
+Requires-Dist: numpy
+Requires-Dist: requests
+Requires-Dist: sentencepiece
+Requires-Dist: tokenizers==0.12.1
+Requires-Dist: torch
+Requires-Dist: torchvision
+Requires-Dist: uvicorn
+Requires-Dist: wandb
+Requires-Dist: transformers@ git+https://github.com/huggingface/transformers.git@cae78c46
+
 
 
 # LLaVa-Med SFT for X-ray Report Generation. (Autumn Project for Sii.)
-![Alt text](asserts/image-1.png)
-![Alt text](asserts/image-2.png)
 ## Overview
-We provide an example of SFT (Supervised Fine-Tuning) based on [LLaVa-med](https://github.com/microsoft/LLaVA-Med) for chest X-ray report generation. For this project, you are required to explore various optimization methods, including but not limited to prompt engineering, fine-tuning techniques, and Agent collaboration. The example only utilizes AP and PA view images of chest X-rays. In practice, when generating reports, you can also choose other views such as lateral view images to enhance the accuracy of the generated reports. Note the `data/public/test.json` and `data/private/private_test.json` are used to generate reports for evaluation.
+We provide an example of SFT (Supervised Fine-Tuning) based on [LLaVa-med](https://github.com/microsoft/LLaVA-Med) for chest X-ray report generation. For this project, you are required to explore various optimization methods, including but not limited to prompt engineering, fine-tuning techniques, and Agent collaboration. The example only utilizes AP and PA view images of chest X-rays. In practice, when generating reports, you can also choose other views such as lateral view images to enhance the accuracy of the generated reports.
 ## Contents
 - [Install](#Install)
-- [Model](#Model)
+- [Model Download](#Model Download)
 - [Dataset](#Dataset)
 - [Training](#Training)
 - [Inference](#Inference)
 - [Metrics](#Metrics)
 
 ## Install
-1. Config proxy
-```bash
-pip3 config set global.index-url http://nexus.sii.shaipower.online/repository/pypi/simple/
-pip3 config set global.trusted-host nexus.sii.shaipower.online
-export HF_ENDPOINT="https://hf-mirror.com"
-sed -i '1i deb http://nexus.sii.shaipower.online/repository/ubuntu/ jammy main' /etc/apt/sources.list
-```
-<!-- 1. Clone this repository and navigate to LLaVa-med-report folder
+
+1. Clone this repository and navigate to LLaVa-med-report folder
 ```bash
 git clone https://github.com/justfine042/LLaVa-med-report.git
 cd LLaVa-med-report
-``` -->
+```
 
 2. Install Package: Create conda environment
 
@@ -34,16 +50,20 @@ conda create -n llava-med-report python=3.10 -y
 conda activate llava-med-report
 pip install --upgrade pip  # enable PEP 660 support
 pip install -e .
+```
+3. Install additional packages for training cases
+- You can install packages on the web cluster(network is supported) of sii and set the needed python path.
+```
+pip uninstall torch torchvision -y
+pip install torch==2.0.0+cu117 torchvision==0.15.1+cu117 torchaudio==2.0.1 --index-url https://download.pytorch.org/whl/cu117
+pip install openai==0.27.8
+pip uninstall transformers -y
+pip install git+https://github.com/huggingface/transformers@cae78c46
+pip install -e .
 pip install einops ninja open-clip-torch
 pip install flash-attn --no-build-isolation
-pip install nltk
-pip install shortuuid
-pip install statsmodels
-pip install bert_score
-pip install fast_bleu
-pip install scikit-learn
 ```
-## Model
+## Model Download
 To ensure the smooth adaptation in terms of the multimodal chat capability and biomedical knowledge understanding, we initialize model weights (delta version) from LLaVa-Med v1.0. The delta weights of LLaVa-Med v1.0 comply with the LLaMA model license. You can add the delta to the original LLaMA weights to obtain the LLaVa-Med v1.0 weights.
 
 Delta weights for LLaVA-Med and 3 LLaVA-Med models each finetuned on the 3 VQA datasets. The default LLaVA-Med model is used for fine-tuning on the chest X-ray dataset, while the other three versions can be utilized for further exploration.
@@ -60,7 +80,6 @@ Instructions:
 2. Get the original LLaMA weights in the huggingface format by following the instructions [here](https://huggingface.co/docs/transformers/main/model_doc/llama).
 3. Use the following scripts to get original LLaVA-Med weights by applying our delta. In the script below, set the --delta argument to the path of the unzipped delta weights directory from step 1.
 
-(We provide the downloaded llama-7B and LLaVA-Med weights in `huggyllama.zip` and `llava_med_in_text_60k_ckpt2_delta.zip` respectively.)
 ```bash
 python3 -m llava.model.apply_delta \
     --base /path/to/llama-7b \
@@ -70,6 +89,14 @@ python3 -m llava.model.apply_delta \
 
 ## Dataset
 We provide a dataset of multi-view chest X-ray images and their corresponding reports, organized within the SII cluster. You can use this dataset to train a report generation model based on the input images or apply prompt engineering to pre-trained vision-language models (VLMs).
+
+we offer: mimic-cxr-2.0.0-metadata.csv, mimic-cxr-2.0.0-split.csv
+run scripts below for generating master.csv file
+1. extract reports
+```shell
+cd preprocess
+python mimic_cxr.py
+```
 
 The file structure is:
 
@@ -89,44 +116,41 @@ data/
 - we provide the original reports in `reports` folder and the extracted version in the `train/test.csv`.
 - `train.csv` includes details about the "findings" and "impression," which together make up the report's content.
 - `test.csv` excludes the report content, and no corresponding report files are provided for the test images (available in the "images" directory).
-- Run `python csv2json.py` to convert the .csv files into instruction-following format data for further fine-tuning. Note that you only need to operate the training file and `test.json` is provided. Remember to move the generated .json file to the same directory as train.csv.
+- Run `python csv2json.py` to convert the .csv files into instruction-following format data for further fine-tuning. Remember to move the generated .json file to the same directory as train.csv.
 ## Training
 ### LLaVA-Med Fine Tuning
-LLaVA-Med is trained on 2 H100 GPUs with 80GB memory with the following code. To train on fewer GPUs, you can reduce the `per_device_train_batch_size` and increase the `gradient_accumulation_steps` accordingly to keep the global batch size the same. For our baseline results, we set `per_device_train_batch_size` to 1 and it takes about 4 hours for training, you can try different hyper-paramers configs. 
-
-run `bash scripts/chunyl/finetune_on_benchmarks/fine_tuning_reports_7B.sh`.
+LLaVA-Med is trained on 2 H100 GPUs with 80GB memory with the following code. To train on fewer GPUs, you can reduce the `per_device_train_batch_size` and increase the `gradient_accumulation_steps` accordingly to keep the global batch size the same.
 
 <details>
-<summary>SFT: LLaVA-Med-7B, 2x H100 (80G).  Time: ~2 hours.</summary>
+<summary>SFT: LLaVA-Med-7B, 2x H100 (80G).  Time: ~? hours.</summary>
 
 ```Shell
-torchrun --nnodes=1 --nproc_per_node=2 --master_port=23001 \
+torchrun --nnodes=1 --nproc_per_node=8 --master_port=25001 \
     llava/train/train_mem.py \
-    --model_name_or_path composed_weights/llava_med_in_text_60k_ckpt2_delta \
-    --data_path xray-report/train.json \
-    --image_folder xray-report/images \
+    --model_name_or_path ./pretrain_weights/llava-7b-v0 \
+    --data_path /path/to/pubmed_600k.json \
+    --image_folder /path/to/pubmed_600k \
     --vision_tower openai/clip-vit-large-patch14 \
-    --mm_vision_select_layer -2 \
-    --mm_use_im_start_end True \
     --tune_mm_mlp_adapter True \
+    --mm_vision_select_layer -2 \
+    --mm_use_im_start_end \
     --bf16 True \
-    --output_dir ./checkpoints/llava_med_in_text_reprot_gen_bs8_tune_proj_gpu2 \
+    --output_dir ./checkpoints/llava-med-7b-pretrain \
     --num_train_epochs 1 \
-    --per_device_train_batch_size 8 \
-    --per_device_eval_batch_size 1 \
-    --gradient_accumulation_steps 1 \
+    --per_device_train_batch_size 2 \
+    --per_device_eval_batch_size 4 \
+    --gradient_accumulation_steps 8 \
     --evaluation_strategy "no" \
     --save_strategy "steps" \
-    --save_steps 5000 \
-    --save_total_limit 3 \
-    --learning_rate 2e-5 \
+    --save_steps 2400 \
+    --save_total_limit 1 \
+    --learning_rate 2e-3 \
     --weight_decay 0. \
     --warmup_ratio 0.03 \
     --lr_scheduler_type "cosine" \
     --logging_steps 1 \
     --tf32 True \
     --model_max_length 2048 \
-    --gradient_checkpointing True \
     --gradient_checkpointing True \
     --lazy_preprocess True \
     --report_to none
@@ -135,22 +159,18 @@ torchrun --nnodes=1 --nproc_per_node=2 --master_port=23001 \
 
 ## Inference
 run [bash inference.sh](inference.sh) for generating report on images with prompts.
-- -chunks: number of gpus
-- --model-name: path/to/your/model
-- --image-folder: image folder
-- --answers-file-pred: target save prediction csv path
-- --answers-file-gt: target save ground-truth csv path
-- --question-file: input questions path
-- --batch-size 
+--num-chunks: number of gpus
+--model-name: path/to/your/model
+--image-folder: image folder
+--answers-file-pred: target save prediction csv path
+--answers-file-gt: target save ground-truth csv path
+--question-file 
 
 ## Metrics
-Adapted from [link](https://github.com/rajpurkarlab/CXR-Report-Metric/). We make some modifications for better execution. Also we add BLEU(1 3 4) for comprehensive assessment. Metrics are:
+Adapted from [link](https://github.com/rajpurkarlab/CXR-Report-Metric/). We make some modifications for better execution. Metrics are:
 * BLEU(1,2,3,4)
 * BERTscore
 * CheXbert labeler vector similarity
-
-* Baseline Results: 
-![Alt text](asserts/metrics.png)
 
 Notes:
 - You can move to their repo for detailed intructions. Attention we have make some modifications in [CXR-Report-Metric](CXR-Report-Metric) for better compability with our datasets.

@@ -7,20 +7,19 @@ from tqdm import tqdm
 class CSVtoJSONConverter:
     def __init__(self, csv_file):
         self.df = pd.read_csv(csv_file)
+        self.df = self.df[self.df["ViewPosition"].isin(["PA", "AP"])] # you can also use other combinatons
+        print('current len of df is: ',len(self.df))
 
     def create_path_2_sent_mapping(self):
         sent_lens, num_sents = [], []
         path2sent = {}
         
+        
         for _, row in tqdm(self.df.iterrows(), total=self.df.shape[0]):
             # pick impression, findings, last_paragraph
             captions = ""
-            captions += "Findings: "
             captions += row["findings"]
-            captions += " "
-            captions += "Impression: "
             captions += row["impression"]
-
             # use space instead of newline
             captions = captions.replace("\n", " ") # \n替换
 
@@ -65,12 +64,10 @@ class CSVtoJSONConverter:
 
         return path2sent
 
-    def convert_to_json(self, output_train_file, output_valid_file):
+    def convert_to_json(self, output_file):
         path2sent = self.create_path_2_sent_mapping()
         
-        train_data = []
-        valid_data = []
-        
+        total_data = []
         for _, row in self.df.iterrows():
             path = row["Path"]
             split = row["split"]
@@ -78,6 +75,7 @@ class CSVtoJSONConverter:
                 entry = {
                     "id": row["Path"].split("/")[-1].split(".")[0],
                     "image": row["Path"].split("/")[-1],
+                    'view': row['ViewPosition'],
                     "conversations": [
                         {
                             "from": "human",
@@ -89,17 +87,16 @@ class CSVtoJSONConverter:
                         }
                     ]
                 }
-                if split == "train":
-                    train_data.append(entry)
-                elif split == "valid":
-                    valid_data.append(entry)
+                total_data.append(entry)
+        total_data = total_data[:2800]
+        print(len(total_data))
+        with open(output_file, 'w') as f:
+            json.dump(total_data, f, indent=4)
         
-        with open(output_train_file, 'w') as f:
-            json.dump(train_data, f, indent=4)
-        
-        with open(output_valid_file, 'w') as f:
-            json.dump(valid_data, f, indent=4)
+        # with open(output_valid_file, 'w') as f:
+        #     json.dump(valid_data, f, indent=4)
 
 if __name__ == "__main__":
-    converter = CSVtoJSONConverter("data/MIMIC-CXR/images_processed/master.csv")
-    converter.convert_to_json("train_IF_mention.json", "valid_IF_mention.json")
+    converter = CSVtoJSONConverter("private/output.csv")
+    save_path = 'xray-report/private_test.json'
+    converter.convert_to_json(save_path)

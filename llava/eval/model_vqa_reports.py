@@ -231,7 +231,7 @@ def eval_model(args):
                 conv = conv_templates[args.conv_mode].copy()
                 conv.append_message(conv.roles[0], qs)
                 prompt = conv.get_prompt()
-                inputs = tokenizer([prompt], return_tensors='pt')  # 确保返回的是张量
+                inputs = tokenizer([prompt], return_tensors='pt')  
 
                 batch_inputs.append(inputs['input_ids'])
                 batch_images.append(images)
@@ -240,6 +240,7 @@ def eval_model(args):
                 batch_gt_answers.append(gt_ans['value'])
 
             input_ids = torch.cat(batch_inputs, dim=0).cuda()
+            print(input_ids.shape)
             images = torch.cat(batch_images, dim=0) if batch_images[0] is not None else None
 
             keywords = ['###']
